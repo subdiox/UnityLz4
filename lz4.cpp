@@ -5,32 +5,31 @@
 
 using namespace std;
 
-vector<uint8_t> setArray(vector<uint8_t> &targetArray, vector<uint8_t> &sourceArray, int &offset) {
-    if (targetArray.size() >= sourceArray.size() + offset) {
-        for (int i = 0; i < sourceArray.size(); i ++) {
-            targetArray[i + offset] = sourceArray[i];
-        }
-    }
-    return targetArray;
-}
+std::vector<uint8_t> readFile(string filename)
+{
+    // open the file:
+    std::ifstream file(filename, std::ios::binary);
 
-vector<uint8_t> copyWithin(vector<uint8_t> &array, int targetIndex, int startIndex, int endIndex) {
-    /*if (startIndex < 0) {
-        startIndex += array.size();
-    }
-    if (endIndex < 0) {
-        endIndex += array.size();
-    }*/
-    //vector<uint8_t> sourceArray(array.begin() + startIndex, array.begin() + endIndex);
-    //vector<uint8_t> beforeArray(array.begin(), array.begin() + targetIndex);
-    //vector<uint8_t> afterArray(array.begin() + targetIndex, array.end());
-    //cout << sourceArray.size() << endl;
+    // Stop eating new lines in binary mode!!!
+    file.unsetf(std::ios::skipws);
 
-    //memcpy(&afterArray[0], &sourceArray[0], sizeof(sourceArray));
-    copy(array.begin() + startIndex, array.begin() + endIndex, array.begin() + targetIndex);
-    //copy(afterArray.begin(), afterArray.end(), back_inserter(beforeArray));
+    // get its size:
+    std::streampos fileSize;
 
-    return array;
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // reserve capacity
+    std::vector<uint8_t> vec;
+    vec.reserve(fileSize);
+
+    // read the data:
+    vec.insert(vec.begin(),
+               std::istream_iterator<uint8_t>(file),
+               std::istream_iterator<uint8_t>());
+
+    return vec;
 }
 
 // Binary Reader for vector<uint8_t>
@@ -83,9 +82,6 @@ int BinaryReader::getPos() {
 // Unity LZ4 Decompressor for vector<uint8_t>
 class LZ4Decompressor {
 public:
-    /*LZ4Decompressor(vector<uint8_t> &array) {
-        reader = new BinaryReader(array);
-    }*/
     vector<uint8_t> decompress(vector<uint8_t> &array);
     int readAdditionalSize(BinaryReader &reader);
 };
@@ -142,7 +138,6 @@ vector<uint8_t> LZ4Decompressor::decompress(vector<uint8_t> &array) {
         if (matchSize > offset) {
             int matchPos = retCurPos - offset;
             while(true) {
-                //retArray = copyWithin(retArray, retCurPos, matchPos, matchPos + offset);
                 copy(retArray.begin() + matchPos, retArray.begin() + matchPos + offset, retArray.begin() + retCurPos);
                 retCurPos += offset;
                 matchSize -= offset;
@@ -151,7 +146,6 @@ vector<uint8_t> LZ4Decompressor::decompress(vector<uint8_t> &array) {
                 }
             }
         }
-        //retArray = copyWithin(retArray, retCurPos, retCurPos - offset, retCurPos - offset + matchSize);
         copy(retArray.begin() + retCurPos - offset, retArray.begin() + retCurPos - offset + matchSize, retArray.begin() + retCurPos);
         retCurPos += matchSize;
     }
@@ -167,33 +161,6 @@ int LZ4Decompressor::readAdditionalSize(BinaryReader &reader) {
     }
 }
 
-std::vector<uint8_t> readFile(const char* filename)
-{
-    // open the file:
-    std::ifstream file(filename, std::ios::binary);
-
-    // Stop eating new lines in binary mode!!!
-    file.unsetf(std::ios::skipws);
-
-    // get its size:
-    std::streampos fileSize;
-
-    file.seekg(0, std::ios::end);
-    fileSize = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    // reserve capacity
-    std::vector<uint8_t> vec;
-    vec.reserve(fileSize);
-
-    // read the data:
-    vec.insert(vec.begin(),
-               std::istream_iterator<uint8_t>(file),
-               std::istream_iterator<uint8_t>());
-
-    return vec;
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         cout << "Usage: " << argv[0] << " /path/to/file" << endl;
@@ -205,7 +172,7 @@ int main(int argc, char *argv[]) {
         vector<uint8_t> vec = readFile(filePath);
         vector<uint8_t> outBuffer = lz4.decompress(vec);
 
-        ofstream output(infile + ".dec", ios::binary);
+        ofstream output(filePath + ".dec", ios::binary);
         output.write((char *)&outBuffer[0], outBuffer.size());
     }
     return 0;
